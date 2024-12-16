@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongo-volume
+  namespace: mongo
+  labels:
+    type: local
+    app: mongo
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /data/mongo
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-volume-claim
+  namespace: mongo
+  labels:
+    app: mongo
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  namespace: mongo
+  labels:
+    app: mongo-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-deploy
+  template:
+    metadata:
+      labels:
+        app: mongo-deploy
+    spec:
+      containers:
+        - name: mongo
+          image: mongo
+          ports:
+            - containerPort: 27017
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: mongodb-secret
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongodata
+      volumes:
+        - name: mongodata
+          persistentVolumeClaim:
+            claimName: mongo-volume-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+  namespace: mongo
+spec:
+  selector:
+    app: mongo-deploy
+  ports:
+  - protocol: TCP
+    port: 27017
+    targetPort: 27017

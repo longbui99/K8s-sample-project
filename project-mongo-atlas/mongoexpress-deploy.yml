@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongoexpress-deploy
+  namespace: mongo
+  labels:
+    app: mongoexpress-deploy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mongoexpress-deploy
+  template:
+    metadata:
+      labels:
+        app: mongoexpress-deploy
+    spec:
+      containers:
+      - name: nginx
+        image: mongo-express:latest
+        ports:
+        - containerPort: 8081
+          protocol: TCP
+        envFrom:
+          - secretRef:
+              name: mongodb-secret
+          - configMapRef:
+              name: mongodb-config
+          - configMapRef:
+              name: mongoexpress-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongoexpress-service
+  namespace: mongo
+spec:
+  selector:
+    app: mongoexpress-deploy
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8081
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mongoexpress-ingress
+  namespace: mongo
+spec:
+  rules:
+  - host: mongo-express.example
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mongoexpress-service
+            port:
+              number: 80
